@@ -1,4 +1,4 @@
-import puppeteer from "puppeteer";
+import puppeteerCore from "puppeteer-core";
 import { InstagramProfile } from "./types";
 
 function parseCount(text: string): number {
@@ -14,6 +14,54 @@ function parseCount(text: string): number {
   return Math.round(num);
 }
 
+async function getBrowser() {
+  // On Vercel / serverless: use @sparticuz/chromium
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    const chromium = (await import("@sparticuz/chromium")).default;
+    const execPath = await chromium.executablePath();
+    return puppeteerCore.launch({
+      args: chromium.args,
+      defaultViewport: { width: 1280, height: 900 },
+      executablePath: execPath,
+      headless: true,
+    });
+  }
+
+  // Locally: try to find an installed Chrome
+  const possiblePaths = [
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/chromium",
+  ];
+
+  let execPath = "";
+  for (const p of possiblePaths) {
+    try {
+      const fs = await import("fs");
+      if (fs.existsSync(p)) {
+        execPath = p;
+        break;
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (!execPath) {
+    throw new Error("No Chrome/Chromium browser found locally");
+  }
+
+  return puppeteerCore.launch({
+    headless: true,
+    executablePath: execPath,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-blink-features=AutomationControlled",
+    ],
+  });
+}
+
 export async function scrapeWithPuppeteer(
   username: string
 ): Promise<{ success: boolean; profile?: InstagramProfile; error?: string }> {
@@ -21,14 +69,7 @@ export async function scrapeWithPuppeteer(
   try {
     const cleanUsername = username.replace(/^@/, "").trim();
 
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-blink-features=AutomationControlled",
-      ],
-    });
+    browser = await getBrowser();
 
     const page = await browser.newPage();
 

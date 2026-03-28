@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { scrapeInstagramProfile } from "@/lib/instagram";
 import { scrapeWithInstaloader } from "@/lib/instaloader";
 import { scrapeWithPuppeteer } from "@/lib/scraper-puppeteer";
+import { scrapeWithRapidApi } from "@/lib/scraper-rapidapi";
 import { analyzeProfile } from "@/lib/claude-cli";
 import { analyzeWithApi } from "@/lib/claude-api";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { analyzeCaption } from "@/lib/nlp";
 import { getTrendDirection } from "@/lib/trends";
 import { ManualProfileInput, InstagramProfile } from "@/lib/types";
+
+const isVercel = !!process.env.VERCEL;
 
 export async function POST(request: NextRequest) {
   // Get client IP
@@ -61,46 +64,95 @@ export async function POST(request: NextRequest) {
     if (manualData) {
       profileData = manualData;
     } else if (username) {
-      // Scraping chain: Puppeteer → Instaloader → Instagram API
       let scraped = false;
       let lastError = "";
 
-      // 1. Puppeteer (headless browser)
-      try {
-        const puppeteerResult = await scrapeWithPuppeteer(username);
-        if (puppeteerResult.success && puppeteerResult.profile) {
-          profileData = puppeteerResult.profile;
-          scraped = true;
-        } else {
-          lastError = puppeteerResult.error || "";
-        }
-      } catch {
-        lastError = "Puppeteer scraping failed";
-      }
+      if (isVercel) {
+        // On Vercel: RapidAPI → Instagram public API → manual entry
+        // (Puppeteer and Instaloader won't reliably work on serverless)
 
-      // 2. Instaloader
-      if (!scraped) {
+        // 1. RapidAPI Instagram scraper (primary on Vercel)
         try {
-          const instaResult = await scrapeWithInstaloader(username);
-          if (instaResult.success && instaResult.profile) {
-            profileData = instaResult.profile;
+          const rapidResult = await scrapeWithRapidApi(username);
+          if (rapidResult.success && rapidResult.profile) {
+            profileData = rapidResult.profile;
             scraped = true;
           } else {
-            lastError = instaResult.error || lastError;
+            lastError = rapidResult.error || "";
           }
         } catch {
-          // continue
+          lastError = "RapidAPI scraping failed";
         }
-      }
 
-      // 3. Instagram public API
-      if (!scraped) {
-        const apiResult = await scrapeInstagramProfile(username);
-        if (apiResult.success && apiResult.profile) {
-          profileData = apiResult.profile;
-          scraped = true;
-        } else {
-          lastError = apiResult.error || lastError;
+        // 2. Instagram public API (fallback)
+        if (!scraped) {
+          try {
+            const apiResult = await scrapeInstagramProfile(username);
+            if (apiResult.success && apiResult.profile) {
+              profileData = apiResult.profile;
+              scraped = true;
+            } else {
+              lastError = apiResult.error || lastError;
+            }
+          } catch {
+            // continue
+          }
+        }
+      } else {
+        // Local: Puppeteer → Instaloader → RapidAPI → Instagram API
+
+        // 1. Puppeteer (headless browser)
+        try {
+          const puppeteerResult = await scrapeWithPuppeteer(username);
+          if (puppeteerResult.success && puppeteerResult.profile) {
+            profileData = puppeteerResult.profile;
+            scraped = true;
+          } else {
+            lastError = puppeteerResult.error || "";
+          }
+        } catch {
+          lastError = "Puppeteer scraping failed";
+        }
+
+        // 2. Instaloader
+        if (!scraped) {
+          try {
+            const instaResult = await scrapeWithInstaloader(username);
+            if (instaResult.success && instaResult.profile) {
+              profileData = instaResult.profile;
+              scraped = true;
+            } else {
+              lastError = instaResult.error || lastError;
+            }
+          } catch {
+            // continue
+          }
+        }
+
+        // 3. RapidAPI (if key is configured)
+        if (!scraped) {
+          try {
+            const rapidResult = await scrapeWithRapidApi(username);
+            if (rapidResult.success && rapidResult.profile) {
+              profileData = rapidResult.profile;
+              scraped = true;
+            } else {
+              lastError = rapidResult.error || lastError;
+            }
+          } catch {
+            // continue
+          }
+        }
+
+        // 4. Instagram public API
+        if (!scraped) {
+          const apiResult = await scrapeInstagramProfile(username);
+          if (apiResult.success && apiResult.profile) {
+            profileData = apiResult.profile;
+            scraped = true;
+          } else {
+            lastError = apiResult.error || lastError;
+          }
         }
       }
 

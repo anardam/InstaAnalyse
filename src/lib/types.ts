@@ -162,6 +162,8 @@ export interface HealthCheckResponse {
   status: "ok" | "error";
   cliInstalled: boolean;
   cliAuthenticated: boolean;
+  isVercel?: boolean;
+  hasServerApiKey?: boolean;
   message: string;
 }
 

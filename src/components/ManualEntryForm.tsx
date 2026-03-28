@@ -81,7 +81,7 @@ export default function ManualEntryForm({
             <p className="text-purple-400/70 text-sm mt-1">
               {errorMessage.includes("manually")
                 ? "Fill in the fields below — the full AI analysis will run just the same."
-                : `Instagram blocked the auto-fetch (${errorMessage}). No worries — just enter your stats below and you\u2019ll get the exact same AI-powered report.`}
+                : "Instagram doesn\u2019t allow automated profile lookups, so we need a few numbers from you. You\u2019ll get the exact same AI-powered report."}
             </p>
             <p className="text-gray-500 text-xs mt-2">
               Tip: open your Instagram profile in a browser to copy the numbers.

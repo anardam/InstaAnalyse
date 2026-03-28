@@ -5,7 +5,6 @@ import { AnalysisReport, HealthCheckResponse, ManualProfileInput } from "@/lib/t
 import LoadingScreen from "@/components/LoadingScreen";
 import ManualEntryForm from "@/components/ManualEntryForm";
 import ReportDashboard from "@/components/ReportDashboard";
-import HealthError from "@/components/HealthError";
 import ApiKeyModal, { getStoredApiKey } from "@/components/ApiKeyModal";
 
 type AppState = "checking" | "healthy" | "unhealthy" | "input" | "manual" | "loading" | "report" | "error";
@@ -176,20 +175,49 @@ export default function Home() {
     );
   }
 
-  // CLI not ready (and no API key)
-  if (state === "unhealthy" && health) {
+  // No API key and no CLI — prompt for API key
+  if (state === "unhealthy") {
+    const isVercel = health?.isVercel;
     return (
-      <div>
+      <div className="min-h-screen flex items-center justify-center p-4">
         <SettingsButton />
         <ApiKeyModal isOpen={showApiKeyModal} onClose={handleApiKeyModalClose} />
-        <HealthError health={health} />
-        <div className="fixed bottom-6 left-0 right-0 text-center">
+        <div className="max-w-md w-full text-center">
+          <div className="w-16 h-16 rounded-full bg-purple-500/20 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold gradient-text mb-2">
+            {isVercel ? "API Key Required" : "Set Up Your AI Engine"}
+          </h2>
+          <p className="text-gray-400 mb-2 text-sm">
+            {isVercel
+              ? "This app is running on Vercel and needs an Anthropic API key to analyze profiles."
+              : "No Claude Code CLI detected. Add your Anthropic API key to get started."}
+          </p>
+          <p className="text-gray-500 mb-6 text-xs">
+            Your key is stored only in your browser — it never touches any server.
+          </p>
           <button
             onClick={() => setShowApiKeyModal(true)}
-            className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg text-white text-sm font-semibold hover:from-purple-500 hover:to-pink-500 transition-all"
+            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white font-semibold hover:from-purple-500 hover:to-pink-500 transition-all text-base"
           >
-            Or use an Anthropic API Key instead
+            Add API Key
           </button>
+          <p className="text-gray-600 text-xs mt-4">
+            Get your key from{" "}
+            <span className="text-purple-400">console.anthropic.com → API Keys</span>
+          </p>
+          {!isVercel && health && (
+            <div className="mt-6 pt-4 border-t border-gray-800">
+              <p className="text-gray-600 text-xs">
+                Or install the{" "}
+                <span className="text-gray-400">Claude Code CLI</span>{" "}
+                to use locally without an API key.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     );

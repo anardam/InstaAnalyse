@@ -20,14 +20,14 @@ export async function scrapeWithRapidApi(
   // Try multiple RapidAPI providers in order of reliability
   const providers = [
     {
+      name: "instagram-scraper-2025",
+      url: `https://instagram-scraper-20251.p.rapidapi.com/userinfo/?username_or_id=${encodeURIComponent(cleanUsername)}`,
+      host: "instagram-scraper-20251.p.rapidapi.com",
+    },
+    {
       name: "instagram-scraper-api2",
       url: `https://instagram-scraper-api2.p.rapidapi.com/v1/info?username_or_id_or_url=${encodeURIComponent(cleanUsername)}`,
       host: "instagram-scraper-api2.p.rapidapi.com",
-    },
-    {
-      name: "instagram-scraper-stable-api",
-      url: `https://instagram-scraper-stable-api.p.rapidapi.com/user_info?username=${encodeURIComponent(cleanUsername)}`,
-      host: "instagram-scraper-stable-api.p.rapidapi.com",
     },
   ];
 
